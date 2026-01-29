@@ -1,6 +1,16 @@
 import { query } from '../db';
 import type { Bill, BillSponsor, Vote } from '@wa-transparency/db';
 
+export interface BillSponsorWithEntity extends BillSponsor {
+  sponsor_name: string;
+  sponsor_slug: string;
+}
+
+export interface VoteWithEntity extends Vote {
+  voter_name: string;
+  voter_slug: string;
+}
+
 export async function getBill(session: string, number: string): Promise<Bill | null> {
   const result = await query<Bill>(
     `SELECT * FROM bills WHERE session = $1 AND bill_number = $2 LIMIT 1`,
@@ -25,8 +35,8 @@ export async function getBillBySlug(slug: string): Promise<Bill | null> {
   return result.rows[0] || null;
 }
 
-export async function getBillSponsors(billId: string): Promise<BillSponsor[]> {
-  const result = await query<BillSponsor>(
+export async function getBillSponsors(billId: string): Promise<BillSponsorWithEntity[]> {
+  const result = await query<BillSponsorWithEntity>(
     `SELECT bs.*, e.name as sponsor_name, e.slug as sponsor_slug
      FROM bill_sponsors bs
      JOIN entities e ON bs.entity_id = e.id
@@ -42,8 +52,8 @@ export async function getBillSponsors(billId: string): Promise<BillSponsor[]> {
   return result.rows;
 }
 
-export async function getBillVotes(billId: string): Promise<Vote[]> {
-  const result = await query<Vote>(
+export async function getBillVotes(billId: string): Promise<VoteWithEntity[]> {
+  const result = await query<VoteWithEntity>(
     `SELECT v.*, e.name as voter_name, e.slug as voter_slug
      FROM votes v
      JOIN entities e ON v.entity_id = e.id

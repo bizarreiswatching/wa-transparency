@@ -13,6 +13,7 @@ import {
   getAllOrganizationSlugs,
 } from '@/lib/queries/organizations';
 import { getEntitySpendingByYear } from '@/lib/queries/charts';
+import { getEntityAggregates, getLobbyingSpendForEntity } from '@/lib/queries/stats';
 
 interface OrgPageProps {
   params: { slug: string };
@@ -60,6 +61,11 @@ export default async function OrgPage({ params }: OrgPageProps) {
     notFound();
   }
 
+  const [aggregates, lobbyingSpend] = await Promise.all([
+    getEntityAggregates(org.id),
+    getLobbyingSpendForEntity(org.id),
+  ]);
+
   return (
     <div className="container py-8">
       {/* Header */}
@@ -89,24 +95,24 @@ export default async function OrgPage({ params }: OrgPageProps) {
         <Card className="p-4">
           <div className="text-sm text-gray-600">Total Contributions</div>
           <div className="text-2xl font-bold">
-            <MoneyAmount amount={0} />
+            <MoneyAmount amount={aggregates?.total_contributions_given ?? 0} />
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-sm text-gray-600">Contracts Received</div>
           <div className="text-2xl font-bold">
-            <MoneyAmount amount={0} />
+            <MoneyAmount amount={aggregates?.total_contracts_received ?? 0} />
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-sm text-gray-600">Lobbying Spend</div>
           <div className="text-2xl font-bold">
-            <MoneyAmount amount={0} />
+            <MoneyAmount amount={lobbyingSpend} />
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-sm text-gray-600">Bills Lobbied</div>
-          <div className="text-2xl font-bold">0</div>
+          <div className="text-2xl font-bold">{aggregates?.lobbying_registration_count ?? 0}</div>
         </Card>
       </div>
 

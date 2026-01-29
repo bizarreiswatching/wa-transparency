@@ -113,11 +113,11 @@ export default async function BillPage({ params }: BillPageProps) {
                 {sponsors.map((sponsor) => (
                   <li key={sponsor.id}>
                     <Link
-                      href={`/person/${sponsor.entity_id}`}
+                      href={`/person/${sponsor.sponsor_slug}`}
                       className="text-wa-green hover:underline"
                     >
                       {sponsor.sponsor_type === 'primary' && '★ '}
-                      Sponsor
+                      {sponsor.sponsor_name}
                     </Link>
                     <Badge variant="outline" className="ml-2">
                       {sponsor.sponsor_type}
@@ -169,7 +169,11 @@ export default async function BillPage({ params }: BillPageProps) {
               <tbody className="divide-y divide-gray-100">
                 {votes.map((vote) => (
                   <tr key={vote.id}>
-                    <td className="px-4 py-2">{vote.entity_id}</td>
+                    <td className="px-4 py-2">
+                      <Link href={`/person/${vote.voter_slug}`} className="text-wa-green hover:underline">
+                        {vote.voter_name}
+                      </Link>
+                    </td>
                     <td className="px-4 py-2">
                       <Badge
                         variant={vote.vote_type === 'yea' ? 'default' : 'secondary'}

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Loading } from '@/components/ui/loading';
 import { ActivityItem } from '@/components/data-display/activity-item';
@@ -39,25 +39,61 @@ export default function ActivityPage() {
         </ul>
       </nav>
 
-      <Suspense fallback={<Loading />}>
-        <ActivityFeedWrapper filter={activeFilter} />
-      </Suspense>
+      <ActivityFeedWrapper filter={activeFilter} />
     </div>
   );
 }
 
 function ActivityFeedWrapper({ filter }: { filter: string }) {
-  // For now, show placeholder since we need to implement the API route
-  // In production, this would fetch data based on the filter
+  const [activities, setActivities] = useState<ActivityLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchActivities() {
+      setLoading(true);
+      setError(null);
+      try {
+        const type = filter === 'all' ? '' : filter;
+        const res = await fetch(`/api/activity?type=${type}&limit=50`);
+        if (!res.ok) {
+          throw new Error('Failed to fetch activity');
+        }
+        const { data } = await res.json();
+        setActivities(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchActivities();
+  }, [filter]);
+
+  if (loading) return <Loading />;
+
+  if (error) {
+    return (
+      <Card className="p-8 text-center">
+        <p className="text-red-500">Error: {error}</p>
+      </Card>
+    );
+  }
+
+  if (activities.length === 0) {
+    return (
+      <Card className="p-8 text-center">
+        <p className="text-gray-500">No recent activity.</p>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="p-8 text-center">
-      <p className="text-gray-500">
-        No recent activity. Data will appear once syncing begins.
-      </p>
-      <p className="mt-2 text-sm text-gray-400">
-        Filter: {filter}
-      </p>
-    </Card>
+    <div className="space-y-4">
+      {activities.map((activity) => (
+        <ActivityItem key={activity.id} activity={activity} />
+      ))}
+    </div>
   );
 }
 

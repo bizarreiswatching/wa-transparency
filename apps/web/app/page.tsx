@@ -1,8 +1,33 @@
 import Link from 'next/link';
 import { SearchInput } from '@/components/ui/search-input';
 import { Card } from '@/components/ui/card';
+import { getGlobalStats } from '@/lib/queries/stats';
 
-export default function HomePage() {
+function formatCurrency(amount: number): string {
+  if (amount >= 1_000_000_000) {
+    return `$${(amount / 1_000_000_000).toFixed(1)}B`;
+  }
+  if (amount >= 1_000_000) {
+    return `$${(amount / 1_000_000).toFixed(1)}M`;
+  }
+  if (amount >= 1_000) {
+    return `$${(amount / 1_000).toFixed(0)}K`;
+  }
+  return `$${amount.toLocaleString()}`;
+}
+
+function formatNumber(num: number): string {
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(1)}M`;
+  }
+  if (num >= 1_000) {
+    return `${(num / 1_000).toFixed(1)}K`;
+  }
+  return num.toLocaleString();
+}
+
+export default async function HomePage() {
+  const stats = await getGlobalStats();
   return (
     <div className="container py-12">
       {/* Hero Section */}
@@ -25,19 +50,19 @@ export default function HomePage() {
       {/* Quick Stats */}
       <section className="mb-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="p-6 text-center">
-          <div className="text-3xl font-bold text-wa-green">$0</div>
+          <div className="text-3xl font-bold text-wa-green">{formatCurrency(stats.total_contributions)}</div>
           <div className="text-sm text-gray-600">Total Contributions Tracked</div>
         </Card>
         <Card className="p-6 text-center">
-          <div className="text-3xl font-bold text-wa-blue">0</div>
+          <div className="text-3xl font-bold text-wa-blue">{formatNumber(stats.org_count)}</div>
           <div className="text-sm text-gray-600">Organizations</div>
         </Card>
         <Card className="p-6 text-center">
-          <div className="text-3xl font-bold text-wa-green">0</div>
+          <div className="text-3xl font-bold text-wa-green">{formatNumber(stats.lobbyist_count)}</div>
           <div className="text-sm text-gray-600">Active Lobbyists</div>
         </Card>
         <Card className="p-6 text-center">
-          <div className="text-3xl font-bold text-wa-blue">0</div>
+          <div className="text-3xl font-bold text-wa-blue">{formatNumber(stats.bill_count)}</div>
           <div className="text-sm text-gray-600">Bills Tracked</div>
         </Card>
       </section>

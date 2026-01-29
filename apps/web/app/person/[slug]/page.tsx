@@ -10,9 +10,13 @@ import { TimelineChart } from '@/components/charts/timeline-chart';
 import {
   getPerson,
   getPersonContributions,
+  getPersonSponsoredBills,
+  getTopDonorsForPerson,
   getAllPersonSlugs,
 } from '@/lib/queries/people';
 import { getEntityActivityTimeline } from '@/lib/queries/charts';
+import { getEntityAggregates, getVoteCountForEntity } from '@/lib/queries/stats';
+import Link from 'next/link';
 
 interface PersonPageProps {
   params: { slug: string };
@@ -58,12 +62,58 @@ async function PersonActivityChart({ entityId }: { entityId: string }) {
   return <TimelineChart data={chartData} />;
 }
 
+async function TopDonors({ entityId }: { entityId: string }) {
+  const donors = await getTopDonorsForPerson(entityId);
+  if (donors.length === 0) return <p className="text-gray-500">No donor data available.</p>;
+
+  return (
+    <ul className="space-y-2">
+      {donors.map((donor) => (
+        <li key={donor.donor_id} className="flex justify-between items-center">
+          <Link
+            href={`/${donor.donor_type === 'person' ? 'person' : 'org'}/${donor.donor_slug}`}
+            className="text-wa-green hover:underline"
+          >
+            {donor.donor_name}
+          </Link>
+          <MoneyAmount amount={donor.total_amount} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+async function SponsoredBills({ entityId }: { entityId: string }) {
+  const bills = await getPersonSponsoredBills(entityId);
+  if (bills.length === 0) return <p className="text-gray-500">No sponsored bills.</p>;
+
+  return (
+    <ul className="space-y-2">
+      {bills.map((bill) => (
+        <li key={bill.id}>
+          <Link
+            href={`/bill/${bill.session}/${bill.bill_number}`}
+            className="text-wa-green hover:underline"
+          >
+            {bill.bill_number}: {bill.title}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default async function PersonPage({ params }: PersonPageProps) {
   const person = await getPerson(params.slug);
 
   if (!person) {
     notFound();
   }
+
+  const [aggregates, voteCount] = await Promise.all([
+    getEntityAggregates(person.id),
+    getVoteCountForEntity(person.id),
+  ]);
 
   const metadata = person.metadata as { party?: string; chamber?: string; district?: string | number } | null;
 
@@ -95,22 +145,22 @@ export default async function PersonPage({ params }: PersonPageProps) {
         <Card className="p-4">
           <div className="text-sm text-gray-600">Contributions Received</div>
           <div className="text-2xl font-bold">
-            <MoneyAmount amount={0} />
+            <MoneyAmount amount={aggregates?.total_contributions_received ?? 0} />
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-sm text-gray-600">Contributions Given</div>
           <div className="text-2xl font-bold">
-            <MoneyAmount amount={0} />
+            <MoneyAmount amount={aggregates?.total_contributions_given ?? 0} />
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-sm text-gray-600">Bills Sponsored</div>
-          <div className="text-2xl font-bold">0</div>
+          <div className="text-2xl font-bold">{aggregates?.bill_sponsorship_count ?? 0}</div>
         </Card>
         <Card className="p-4">
           <div className="text-sm text-gray-600">Votes Cast</div>
-          <div className="text-2xl font-bold">0</div>
+          <div className="text-2xl font-bold">{voteCount}</div>
         </Card>
       </div>
 
@@ -125,7 +175,9 @@ export default async function PersonPage({ params }: PersonPageProps) {
       {/* Top Donors */}
       <Card className="mb-8 p-6">
         <h2 className="mb-4 text-xl font-semibold">Top Donors</h2>
-        <p className="text-gray-500">No donor data available yet.</p>
+        <Suspense fallback={<Loading />}>
+          <TopDonors entityId={person.id} />
+        </Suspense>
       </Card>
 
       {/* Recent Contributions */}
@@ -139,7 +191,9 @@ export default async function PersonPage({ params }: PersonPageProps) {
       {/* Sponsored Bills */}
       <Card className="p-6">
         <h2 className="mb-4 text-xl font-semibold">Sponsored Bills</h2>
-        <p className="text-gray-500">No sponsored bills yet.</p>
+        <Suspense fallback={<Loading />}>
+          <SponsoredBills entityId={person.id} />
+        </Suspense>
       </Card>
     </div>
   );
