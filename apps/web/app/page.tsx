@@ -1,7 +1,11 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { SearchInput } from '@/components/ui/search-input';
 import { Card } from '@/components/ui/card';
+import { Loading } from '@/components/ui/loading';
+import { ActivityItem } from '@/components/data-display/activity-item';
 import { getGlobalStats } from '@/lib/queries/stats';
+import { getRecentActivity } from '@/lib/queries/activity';
 
 // Force dynamic rendering since we fetch live data from DB
 export const dynamic = 'force-dynamic';
@@ -28,6 +32,28 @@ function formatNumber(num: number): string {
     return `${(num / 1_000).toFixed(1)}K`;
   }
   return num.toLocaleString();
+}
+
+async function RecentActivityPreview() {
+  const activities = await getRecentActivity(5);
+
+  if (activities.length === 0) {
+    return (
+      <Card className="p-6">
+        <p className="text-center text-gray-500">
+          No recent activity. Data will appear once syncing begins.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {activities.map((activity) => (
+        <ActivityItem key={activity.id} activity={activity} />
+      ))}
+    </div>
+  );
 }
 
 export default async function HomePage() {
@@ -139,11 +165,9 @@ export default async function HomePage() {
             View all
           </Link>
         </div>
-        <Card className="p-6">
-          <p className="text-center text-gray-500">
-            No recent activity. Data will appear once syncing begins.
-          </p>
-        </Card>
+        <Suspense fallback={<Loading />}>
+          <RecentActivityPreview />
+        </Suspense>
       </section>
     </div>
   );
