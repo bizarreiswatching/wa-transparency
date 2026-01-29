@@ -1,0 +1,30 @@
+{
+  "description": "Washington State Legislators seed data template",
+  "source": "WA Legislature website",
+  "last_updated": null,
+  "legislators": [
+    {
+      "name": "Example Senator",
+      "type": "person",
+      "chamber": "senate",
+      "district": 1,
+      "party": "D",
+      "email": "example.senator@leg.wa.gov",
+      "committees": []
+    },
+    {
+      "name": "Example Representative",
+      "type": "person",
+      "chamber": "house",
+      "district": 1,
+      "position": 1,
+      "party": "R",
+      "email": "example.representative@leg.wa.gov",
+      "committees": []
+    }
+  ],
+  "notes": [
+    "This is a template file. Actual legislator data should be fetched from the WA Legislature API.",
+    "The sync-wa-legislature worker job will populate this data automatically."
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "wa-transparency",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Washington State Political Transparency Project",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter web start",
+    "workers": "pnpm --filter workers start",
+    "workers:dev": "pnpm --filter workers dev",
+    "db:migrate": "pnpm --filter @wa-transparency/db migrate",
+    "db:seed": "pnpm --filter workers seed",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r clean",
+    "docker:dev": "docker compose -f docker-compose.dev.yml up -d",
+    "docker:dev:down": "docker compose -f docker-compose.dev.yml down",
+    "docker:prod": "docker compose up -d",
+    "docker:prod:down": "docker compose down"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

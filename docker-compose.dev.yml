@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=wa_user
+      - POSTGRES_PASSWORD=wa_password
+      - POSTGRES_DB=wa_transparency
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - wa-transparency-dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wa_user -d wa_transparency"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_dev_data:
+
+networks:
+  wa-transparency-dev:
+    driver: bridge
