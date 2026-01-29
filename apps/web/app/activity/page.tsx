@@ -1,84 +1,28 @@
-'use client';
-
-import { useState, useEffect } from 'react';
+import { Suspense } from 'react';
+import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Loading } from '@/components/ui/loading';
 import { ActivityItem } from '@/components/data-display/activity-item';
-import type { ActivityLogEntry } from '@wa-transparency/db';
+import { getRecentActivity, getActivityByType } from '@/lib/queries/activity';
 
-export default function ActivityPage() {
-  const [activeFilter, setActiveFilter] = useState<string>('all');
+export const dynamic = 'force-dynamic';
 
-  return (
-    <div className="container py-8">
-      <h1 className="mb-2 text-3xl font-bold">Recent Activity</h1>
-      <p className="mb-8 text-gray-600">
-        Latest updates from campaign finance filings, lobbying disclosures, and contract awards.
-      </p>
-
-      {/* Filters */}
-      <nav aria-label="Activity filters" className="mb-6">
-        <ul className="flex flex-wrap gap-2" role="list">
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'contribution', label: 'Contributions' },
-            { id: 'lobbying', label: 'Lobbying' },
-            { id: 'contract', label: 'Contracts' },
-            { id: 'bill', label: 'Bills' },
-          ].map((filter) => (
-            <li key={filter.id}>
-              <FilterButton
-                active={activeFilter === filter.id}
-                onClick={() => setActiveFilter(filter.id)}
-                aria-pressed={activeFilter === filter.id}
-              >
-                {filter.label}
-              </FilterButton>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      <ActivityFeedWrapper filter={activeFilter} />
-    </div>
-  );
+interface ActivityPageProps {
+  searchParams: { type?: string };
 }
 
-function ActivityFeedWrapper({ filter }: { filter: string }) {
-  const [activities, setActivities] = useState<ActivityLogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const filters = [
+  { id: 'all', label: 'All' },
+  { id: 'contribution', label: 'Contributions' },
+  { id: 'lobbying', label: 'Lobbying' },
+  { id: 'contract', label: 'Contracts' },
+  { id: 'bill', label: 'Bills' },
+];
 
-  useEffect(() => {
-    async function fetchActivities() {
-      setLoading(true);
-      setError(null);
-      try {
-        const type = filter === 'all' ? '' : filter;
-        const res = await fetch(`/api/activity?type=${type}&limit=50`);
-        if (!res.ok) {
-          throw new Error('Failed to fetch activity');
-        }
-        const { data } = await res.json();
-        setActivities(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchActivities();
-  }, [filter]);
-
-  if (loading) return <Loading />;
-
-  if (error) {
-    return (
-      <Card className="p-8 text-center">
-        <p className="text-red-500">Error: {error}</p>
-      </Card>
-    );
-  }
+async function ActivityFeed({ type }: { type?: string }) {
+  const activities = type && type !== 'all'
+    ? await getActivityByType(type, 50)
+    : await getRecentActivity(50);
 
   if (activities.length === 0) {
     return (
@@ -97,29 +41,39 @@ function ActivityFeedWrapper({ filter }: { filter: string }) {
   );
 }
 
-function FilterButton({
-  active,
-  children,
-  onClick,
-  'aria-pressed': ariaPressed,
-}: {
-  active?: boolean;
-  children: React.ReactNode;
-  onClick?: () => void;
-  'aria-pressed'?: boolean;
-}) {
+export default function ActivityPage({ searchParams }: ActivityPageProps) {
+  const activeFilter = searchParams.type || 'all';
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={ariaPressed}
-      className={`rounded-full px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-wa-green focus:ring-offset-2 ${
-        active
-          ? 'bg-wa-green text-white'
-          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-      }`}
-    >
-      {children}
-    </button>
+    <div className="container py-8">
+      <h1 className="mb-2 text-3xl font-bold">Recent Activity</h1>
+      <p className="mb-8 text-gray-600">
+        Latest updates from campaign finance filings, lobbying disclosures, and contract awards.
+      </p>
+
+      {/* Filters */}
+      <nav aria-label="Activity filters" className="mb-6">
+        <ul className="flex flex-wrap gap-2" role="list">
+          {filters.map((filter) => (
+            <li key={filter.id}>
+              <Link
+                href={filter.id === 'all' ? '/activity' : `/activity?type=${filter.id}`}
+                className={`inline-block rounded-full px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-wa-green focus:ring-offset-2 ${
+                  activeFilter === filter.id
+                    ? 'bg-wa-green text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {filter.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      <Suspense fallback={<Loading />}>
+        <ActivityFeed type={activeFilter} />
+      </Suspense>
+    </div>
   );
 }
