@@ -3,6 +3,10 @@ import { SearchInput } from '@/components/ui/search-input';
 import { Card } from '@/components/ui/card';
 import { getGlobalStats } from '@/lib/queries/stats';
 
+// Force dynamic rendering since we fetch live data from DB
+export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // Revalidate every hour
+
 function formatCurrency(amount: number): string {
   if (amount >= 1_000_000_000) {
     return `$${(amount / 1_000_000_000).toFixed(1)}B`;
