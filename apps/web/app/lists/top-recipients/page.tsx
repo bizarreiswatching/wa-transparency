@@ -57,8 +57,9 @@ export default function TopRecipientsPage({
 }: {
   searchParams: { year?: string };
 }) {
-  const year = searchParams.year ? parseInt(searchParams.year) : undefined;
   const currentYear = new Date().getFullYear();
+  // Default to current year, 'all' for all time
+  const year = searchParams.year === 'all' ? undefined : (searchParams.year ? parseInt(searchParams.year) : currentYear);
   const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
   return (
@@ -69,17 +70,7 @@ export default function TopRecipientsPage({
       </p>
 
       {/* Year Filter */}
-      <div className="mb-6 flex gap-2">
-        <a
-          href="/lists/top-recipients"
-          className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-            !year
-              ? 'bg-wa-green text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          All Time
-        </a>
+      <div className="mb-6 flex flex-wrap gap-2">
         {years.map((y) => (
           <a
             key={y}
@@ -93,6 +84,16 @@ export default function TopRecipientsPage({
             {y}
           </a>
         ))}
+        <a
+          href="/lists/top-recipients?year=all"
+          className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+            !year
+              ? 'bg-wa-green text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          All Time
+        </a>
       </div>
 
       <Suspense fallback={<Loading />}>

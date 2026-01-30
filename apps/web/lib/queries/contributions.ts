@@ -22,7 +22,29 @@ interface TopRecipient {
 }
 
 export async function getTopDonors(year?: number, limit = 100): Promise<TopDonor[]> {
-  let sql = `
+  // For "All Time", use pre-computed entity_aggregates for performance
+  if (!year) {
+    const sql = `
+      SELECT
+        e.id,
+        e.name,
+        e.slug,
+        e.type,
+        COALESCE(ea.total_contributions_given, 0) as total_amount,
+        COALESCE(ea.contribution_count_given, 0) as contribution_count,
+        0 as recipient_count
+      FROM entity_aggregates ea
+      JOIN entities e ON ea.entity_id = e.id
+      WHERE ea.total_contributions_given > 0
+      ORDER BY ea.total_contributions_given DESC
+      LIMIT $1
+    `;
+    const result = await query<TopDonor>(sql, [limit]);
+    return result.rows;
+  }
+
+  // For specific year, query contributions table with year filter
+  const sql = `
     SELECT
       e.id,
       e.name,
@@ -33,28 +55,40 @@ export async function getTopDonors(year?: number, limit = 100): Promise<TopDonor
       COUNT(DISTINCT c.recipient_entity_id) as recipient_count
     FROM contributions c
     JOIN entities e ON c.contributor_entity_id = e.id
-  `;
-
-  const params: unknown[] = [];
-
-  if (year) {
-    sql += ` WHERE c.election_year = $1`;
-    params.push(year);
-  }
-
-  sql += `
+    WHERE c.election_year = $1
     GROUP BY e.id, e.name, e.slug, e.type
     ORDER BY total_amount DESC
-    LIMIT $${params.length + 1}
+    LIMIT $2
   `;
-  params.push(limit);
 
-  const result = await query<TopDonor>(sql, params);
+  const result = await query<TopDonor>(sql, [year, limit]);
   return result.rows;
 }
 
 export async function getTopRecipients(year?: number, limit = 100): Promise<TopRecipient[]> {
-  let sql = `
+  // For "All Time", use pre-computed entity_aggregates for performance
+  if (!year) {
+    const sql = `
+      SELECT
+        e.id,
+        e.name,
+        e.slug,
+        e.type,
+        COALESCE(ea.total_contributions_received, 0) as total_amount,
+        COALESCE(ea.contribution_count_received, 0) as contribution_count,
+        0 as donor_count
+      FROM entity_aggregates ea
+      JOIN entities e ON ea.entity_id = e.id
+      WHERE ea.total_contributions_received > 0
+      ORDER BY ea.total_contributions_received DESC
+      LIMIT $1
+    `;
+    const result = await query<TopRecipient>(sql, [limit]);
+    return result.rows;
+  }
+
+  // For specific year, query contributions table with year filter
+  const sql = `
     SELECT
       e.id,
       e.name,
@@ -65,23 +99,13 @@ export async function getTopRecipients(year?: number, limit = 100): Promise<TopR
       COUNT(DISTINCT c.contributor_entity_id) as donor_count
     FROM contributions c
     JOIN entities e ON c.recipient_entity_id = e.id
-  `;
-
-  const params: unknown[] = [];
-
-  if (year) {
-    sql += ` WHERE c.election_year = $1`;
-    params.push(year);
-  }
-
-  sql += `
+    WHERE c.election_year = $1
     GROUP BY e.id, e.name, e.slug, e.type
     ORDER BY total_amount DESC
-    LIMIT $${params.length + 1}
+    LIMIT $2
   `;
-  params.push(limit);
 
-  const result = await query<TopRecipient>(sql, params);
+  const result = await query<TopRecipient>(sql, [year, limit]);
   return result.rows;
 }
 

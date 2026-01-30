@@ -3,7 +3,7 @@ import type { Entity, Contribution, EntityType } from '@wa-transparency/db';
 
 export async function getOrganization(slug: string): Promise<Entity | null> {
   const result = await query<Entity>(
-    `SELECT * FROM entities WHERE slug = $1 AND type = 'organization' LIMIT 1`,
+    `SELECT * FROM entities WHERE slug = $1 AND type IN ('organization', 'committee', 'government') LIMIT 1`,
     [slug]
   );
   return result.rows[0] || null;
@@ -69,7 +69,7 @@ export async function getOrganizationLobbying(entityId: string, limit = 50) {
 
 export async function getAllOrganizationSlugs(): Promise<string[]> {
   const result = await query<{ slug: string }>(
-    `SELECT slug FROM entities WHERE type = 'organization'`
+    `SELECT slug FROM entities WHERE type IN ('organization', 'committee', 'government')`
   );
   return result.rows.map((row) => row.slug);
 }
