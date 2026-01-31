@@ -49,14 +49,32 @@ export async function syncPdcLobbying(options: SyncOptions = {}): Promise<void> 
       totalSynced++;
     }
 
-    // Fetch lobbying activities
+    // Fetch lobbying activities (compensation data)
+    console.log('Fetching lobbying activities (compensation data)...');
     const activities = await pdc.getLobbyingActivities();
+    console.log(`Fetched ${activities.length} activity records from PDC.`);
+
+    let activitiesMatched = 0;
+    let activitiesUnmatched = 0;
+    let activitiesSkipped = 0;
 
     for (const activity of activities) {
-      // Find registration
+      // Skip activities with no compensation data
+      if (!activity.compensation && !activity.expenses) {
+        activitiesSkipped++;
+        continue;
+      }
+
+      // Find registration by lobbyist name and employer name
+      // The compensation dataset uses different IDs than the registration dataset,
+      // so we match by names instead of by registration_id
+      // Use case-insensitive matching since name formats may differ between datasets
       const regResult = await db.query(
-        `SELECT id FROM lobbying_registrations WHERE pdc_id = $1`,
-        [activity.registration_id]
+        `SELECT id FROM lobbying_registrations
+         WHERE LOWER(TRIM(lobbyist_name)) = LOWER(TRIM($1))
+           AND LOWER(TRIM(employer_name)) = LOWER(TRIM($2))
+         LIMIT 1`,
+        [activity.lobbyist_name, activity.employer_name]
       );
 
       if (regResult.rows.length > 0) {
@@ -64,7 +82,10 @@ export async function syncPdcLobbying(options: SyncOptions = {}): Promise<void> 
           `INSERT INTO lobbying_activities (
             registration_id, activity_date, description, compensation, expenses
           ) VALUES ($1, $2, $3, $4, $5)
-          ON CONFLICT DO NOTHING`,
+          ON CONFLICT (registration_id, activity_date) DO UPDATE SET
+            compensation = COALESCE(EXCLUDED.compensation, lobbying_activities.compensation),
+            expenses = COALESCE(EXCLUDED.expenses, lobbying_activities.expenses),
+            description = COALESCE(EXCLUDED.description, lobbying_activities.description)`,
           [
             regResult.rows[0].id,
             activity.date,
@@ -73,8 +94,13 @@ export async function syncPdcLobbying(options: SyncOptions = {}): Promise<void> 
             activity.expenses,
           ]
         );
+        activitiesMatched++;
+      } else {
+        activitiesUnmatched++;
       }
     }
+
+    console.log(`Activity matching: ${activitiesMatched} matched, ${activitiesUnmatched} unmatched, ${activitiesSkipped} skipped (no compensation).`);
 
     await updateSyncState(db, 'pdc-lobbying', 'idle', totalSynced);
     console.log(`PDC lobbying sync complete. Synced ${totalSynced} registrations.`);

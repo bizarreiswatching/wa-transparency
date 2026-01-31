@@ -55,6 +55,8 @@ interface PdcLobbyingRegistration {
 
 interface PdcLobbyingActivity {
   registration_id: string;
+  lobbyist_name: string;
+  employer_name: string;
   date: string;
   description?: string;
   compensation?: number;
@@ -177,22 +179,43 @@ export function getPdcClient(): PdcClient {
       },
 
       async getLobbyingActivities(): Promise<PdcLobbyingActivity[]> {
-        const queryParams: Record<string, string> = {
-          $limit: '1000',
-          $order: 'filing_period DESC',
-        };
+        const allActivities: PdcLobbyingActivity[] = [];
+        const limit = 1000;
+        let offset = 0;
+        let hasMore = true;
 
-        const response = await http.get(`/${PDC_DATASETS.lobbyist_compensation}.json`, {
-          params: queryParams,
-        });
+        while (hasMore) {
+          const queryParams: Record<string, string> = {
+            $limit: String(limit),
+            $offset: String(offset),
+            $order: 'filing_period DESC',
+          };
 
-        return response.data.map((row: Record<string, unknown>) => ({
-          registration_id: String(row.employment_registration_id || row.filer_id || row.id || ''),
-          date: String(row.filing_period || row.receipt_date || ''),
-          description: row.funding_source ? String(row.funding_source) : undefined,
-          compensation: row.compensation ? parseFloat(String(row.compensation)) : undefined,
-          expenses: row.total_expenses ? parseFloat(String(row.total_expenses)) : undefined,
-        }));
+          const response = await http.get(`/${PDC_DATASETS.lobbyist_compensation}.json`, {
+            params: queryParams,
+          });
+
+          const activities = response.data.map((row: Record<string, unknown>) => ({
+            registration_id: String(row.employment_registration_id || row.filer_id || row.id || ''),
+            // NOTE: Compensation dataset uses 'filer_name' for lobbyist, not 'lobbyist_name'
+            lobbyist_name: String(row.filer_name || row.lobbyist_name || ''),
+            employer_name: String(row.employer_name || ''),
+            date: String(row.filing_period || row.receipt_date || ''),
+            description: row.funding_source ? String(row.funding_source) : undefined,
+            compensation: row.compensation ? parseFloat(String(row.compensation)) : undefined,
+            expenses: row.total_expenses ? parseFloat(String(row.total_expenses)) : undefined,
+          }));
+
+          allActivities.push(...activities);
+
+          if (response.data.length < limit) {
+            hasMore = false;
+          } else {
+            offset += limit;
+          }
+        }
+
+        return allActivities;
       },
 
       async getCandidates(params: CandidateParams): Promise<PdcCandidate[]> {
