@@ -64,3 +64,15 @@ export const PARTIES = {
   INDEPENDENT: 'I',
   OTHER: 'O',
 } as const;
+
+// Aggregate bucket entity names that should be excluded from rankings
+// These represent aggregated small contributions in PDC data, not real donors
+export const AGGREGATE_BUCKET_NAMES = [
+  'Small Contributions',
+  'Miscellaneous Receipts',
+  'Anonymous',
+  'Anonymous Contributions',
+  'Unitemized Contributions',
+  'Unitemized Member Dues',
+  'Aggregate Contributions',
+] as const;
