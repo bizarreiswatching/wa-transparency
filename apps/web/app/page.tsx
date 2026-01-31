@@ -123,7 +123,7 @@ export default async function HomePage() {
                 Top Contractors
               </h3>
               <p className="text-sm text-gray-600">
-                Track federal contracts awarded to WA businesses.
+                Track Washington State government contracts.
               </p>
             </Card>
           </Link>

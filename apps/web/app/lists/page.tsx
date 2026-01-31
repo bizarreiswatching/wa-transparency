@@ -19,7 +19,7 @@ const lists = [
   },
   {
     title: 'Top Contractors',
-    description: 'Washington businesses receiving the largest federal contracts.',
+    description: 'Businesses receiving the largest Washington State government contracts.',
     href: '/lists/top-contractors',
   },
   {

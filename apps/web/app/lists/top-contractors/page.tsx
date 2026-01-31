@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Top Contractors',
-  description: 'Washington businesses receiving the largest federal contracts.',
+  description: 'Businesses receiving the largest Washington State government contracts.',
 };
 
 async function TopContractorsList() {
@@ -57,7 +57,7 @@ export default function TopContractorsPage() {
     <div className="container py-8">
       <h1 className="mb-2 text-3xl font-bold">Top Contractors</h1>
       <p className="mb-8 text-gray-600">
-        Washington businesses receiving the largest federal contracts.
+        Businesses receiving the largest Washington State government contracts.
       </p>
 
       <Suspense fallback={<Loading />}>
