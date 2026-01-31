@@ -66,23 +66,29 @@ JOB_NAME=compute-aggregates pnpm --filter workers start
 # SSH to VPS
 gcloud compute ssh haystack-001 --zone=us-west1-b
 
-# On VPS: Deploy updates
+# On VPS: Deploy updates (manual method - more reliable)
 cd /opt/wa-transparency
-./scripts/deploy.sh
+git fetch origin && git reset --hard origin/main
+sudo docker-compose build web
+sudo docker-compose up -d web
 
 # On VPS: Run a job manually
-./scripts/run-job.sh sync-pdc-contributions
-./scripts/run-job.sh entity-resolution
+sudo JOB_NAME=sync-pdc-lobbying docker-compose run --rm workers
+sudo JOB_NAME=compute-aggregates docker-compose run --rm workers
 
 # On VPS: View logs
-docker compose logs -f web
-docker compose logs -f postgres
-tail -f /opt/wa-transparency/logs/sync-pdc-contributions.log
+sudo docker-compose logs -f web
+sudo docker-compose logs -f postgres
 
 # On VPS: Restart services
-docker compose restart web
-docker compose down && docker compose up -d
+sudo docker-compose restart web
+sudo docker-compose down && sudo docker-compose up -d
+
+# On VPS: Database queries
+sudo docker-compose exec -T postgres psql -U wa_user -d wa_transparency -c "SELECT ..."
 ```
+
+**Note:** Use `sudo docker-compose` (with hyphen) on the VPS, not `docker compose`.
 
 ### Key Files by Task
 
@@ -100,7 +106,7 @@ docker compose down && docker compose up -d
 
 - `entities` - Unified orgs/people (id, type, name, slug, metadata)
 - `contributions` - Campaign contributions (contributor_entity_id, recipient_entity_id, amount)
-- `contracts` - Federal contracts (recipient_entity_id, amount, awarding_agency)
+- `contracts` - Government contracts (recipient_entity_id, amount, awarding_agency) - *Pending WA state data*
 - `lobbying_registrations` - Lobbyist-employer relationships
 - `bills` - WA Legislature bills (session, bill_number, slug)
 - `entity_aggregates` - Materialized view with totals per entity
@@ -214,6 +220,31 @@ See `docs/TODO.md` for tracked incomplete items. Key areas:
 - Full text search optimization
 - Test coverage
 - Authentication for admin features
+- **WA State Contracts**: Contractors page needs WA state contract data (from WEBS or fiscal.wa.gov). Federal contracts cleared.
+- **Entity Deduplication**: Multiple entities exist for same orgs (Delta Dental, Microsoft, SEIU, etc.)
+- **Lobbyist Slugs**: Many lobbyists use UUID URLs instead of slugs
+
+## Known Data Issues
+
+### PDC API Field Mappings
+The PDC datasets use inconsistent field names:
+- **Registration dataset** (`xhn7-64im`): Uses `lobbyist_name`, `employer_name`
+- **Compensation dataset** (`9nnw-c693`): Uses `filer_name` (not `lobbyist_name`), `employer_name`
+
+When syncing lobbying compensation, match on `filer_name` not `lobbyist_name`.
+
+### Contribution Date Quality
+Some PDC contribution records have incorrect dates (years like 2041, 2031). The activity feed filters these out with `contribution_date <= CURRENT_DATE`.
+
+### Aggregate Bucket Entities
+PDC aggregates small contributions into bucket entities that should be excluded from rankings:
+- Small Contributions
+- Miscellaneous Receipts
+- Anonymous Contributions
+- Unitemized Member Dues
+- Aggregate Contributions
+
+These are filtered in `apps/web/lib/constants.ts`.
 
 ## Debugging
 
