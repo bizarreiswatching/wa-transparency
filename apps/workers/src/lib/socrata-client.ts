@@ -87,25 +87,33 @@ export interface WaStatewideSale {
   purchasing_agency?: string;
 }
 
-// King County Procurement record
+// King County Procurement record (dataset dqit-zt74)
+// Actual fields from API: vendor_supplier_name, site, contract, description,
+// start_date, expires, not_to_exceed, spend_to_date, procurement_method, agency, type
 export interface KingCountyContract {
-  supplier_name?: string;
-  supplier_address?: string;
-  supplier_city?: string;
-  supplier_state?: string;
-  supplier_zip?: string;
-  contract_id?: string;
-  contract_title?: string;
-  contract_amount?: string;
-  execution_date?: string;
-  expiration_date?: string;
-  department?: string;
-  contract_type?: string;
-  // Alternative field names
-  vendor_name?: string;
-  vendor?: string;
-  award_amount?: string;
-  amount?: string;
+  vendor_supplier_name?: string;
+  site?: string;
+  contract?: string;
+  description?: string;
+  piggyback_available?: string;
+  green?: string;
+  p_card?: string;
+  small_business?: string;
+  emergency?: string;
+  start_date?: string;
+  expires?: string;
+  autosource?: string;
+  source?: string;
+  terms_conditions?: string;
+  external_contract_link?: string;
+  not_to_exceed?: string;
+  spend_to_date?: string;
+  procurement_method?: string;
+  agency?: string;
+  type?: string;
+  contact?: string;
+  comments?: string;
+  procnum?: string;
 }
 
 let socrataClient: SocrataClient | null = null;

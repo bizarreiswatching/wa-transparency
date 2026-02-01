@@ -39,7 +39,7 @@ export async function syncKingCountyContracts(
     if (lastSyncDate && !options.fullSync) {
       // Sync records updated since last successful sync
       const dateStr = new Date(lastSyncDate).toISOString().split('T')[0];
-      whereClause = `execution_date >= '${dateStr}'`;
+      whereClause = `start_date >= '${dateStr}'`;
       console.log(`Incremental sync from ${dateStr}`);
     } else {
       console.log('Full sync');
@@ -51,7 +51,7 @@ export async function syncKingCountyContracts(
       SOCRATA_DATASETS.kingCountyProcurement,
       {
         $where: whereClause,
-        $order: 'execution_date DESC',
+        $order: 'start_date DESC',
       },
       { batchSize: 1000 }
     );
@@ -60,12 +60,8 @@ export async function syncKingCountyContracts(
       console.log(`Processing batch of ${batch.length} records...`);
 
       for (const record of batch) {
-        // Extract vendor name from various possible fields
-        const vendorName =
-          record.supplier_name ||
-          record.vendor_name ||
-          record.vendor ||
-          '';
+        // Extract vendor name (dataset uses vendor_supplier_name)
+        const vendorName = record.vendor_supplier_name || '';
 
         if (!vendorName) {
           totalSkipped++;
@@ -73,32 +69,29 @@ export async function syncKingCountyContracts(
         }
 
         // Generate unique ID from contract data
+        // Use contract number (procnum) or generate hash
         const contractId =
-          record.contract_id ||
+          record.procnum ||
+          record.contract ||
           `kc-${hashContractKey(
             vendorName,
-            record.department || '',
-            record.contract_amount || record.award_amount || record.amount || '0',
-            record.execution_date || ''
+            record.agency || '',
+            record.not_to_exceed || record.spend_to_date || '0',
+            record.start_date || ''
           )}`;
 
         // Parse and normalize data
         const normalizedName = normalizeVendorName(vendorName);
-        const normalizedAddress = normalizeAddress(
-          record.supplier_address,
-          record.supplier_city,
-          record.supplier_state,
-          record.supplier_zip
-        );
+        // No address fields in this dataset
+        const normalizedAddress = normalizeAddress(undefined, undefined, 'WA', undefined);
 
-        const amount = parseSocrataMoney(
-          record.contract_amount || record.award_amount || record.amount
-        );
-        const startDate = parseSocrataDate(record.execution_date);
-        const endDate = parseSocrataDate(record.expiration_date);
+        // Use not_to_exceed or spend_to_date for amount
+        const amount = parseSocrataMoney(record.not_to_exceed || record.spend_to_date);
+        const startDate = parseSocrataDate(record.start_date);
+        const endDate = parseSocrataDate(record.expires);
 
-        // Skip records without essential data
-        if (!startDate || amount <= 0) {
+        // Skip records without essential data (allow $0 contracts)
+        if (!startDate) {
           totalSkipped++;
           continue;
         }
@@ -110,18 +103,15 @@ export async function syncKingCountyContracts(
             recipient_state, recipient_zip, awarding_agency, awarding_sub_agency,
             award_type, amount, start_date, end_date, description,
             place_of_performance_state, place_of_performance_city,
-            source_type, awarding_agency_type, contract_number,
+            source_type, awarding_agency_type, contract_number, procurement_method,
             source_url, raw_data
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
           ON CONFLICT (king_county_id) WHERE king_county_id IS NOT NULL DO UPDATE SET
             recipient_name = EXCLUDED.recipient_name,
-            recipient_address = EXCLUDED.recipient_address,
-            recipient_city = EXCLUDED.recipient_city,
-            recipient_state = EXCLUDED.recipient_state,
-            recipient_zip = EXCLUDED.recipient_zip,
             amount = EXCLUDED.amount,
             end_date = EXCLUDED.end_date,
             description = EXCLUDED.description,
+            procurement_method = EXCLUDED.procurement_method,
             raw_data = EXCLUDED.raw_data,
             updated_at = NOW()`,
           [
@@ -132,17 +122,18 @@ export async function syncKingCountyContracts(
             normalizedAddress.state || 'WA',
             normalizedAddress.zip || null,
             'King County', // awarding_agency
-            record.department || null, // awarding_sub_agency
-            record.contract_type || 'contract', // award_type
+            record.agency || null, // awarding_sub_agency (department/agency)
+            record.type || 'contract', // award_type
             amount,
             startDate,
             endDate || null,
-            record.contract_title || null, // description
+            record.description || null, // description
             'WA', // place_of_performance_state
             'King County', // place_of_performance_city (general area)
             'county', // source_type
             'county', // awarding_agency_type
-            record.contract_id || null, // contract_number
+            record.contract || record.procnum || null, // contract_number
+            record.procurement_method || null, // procurement_method
             `https://data.kingcounty.gov/resource/${SOCRATA_DATASETS.kingCountyProcurement}`, // source_url
             JSON.stringify(record), // raw_data
           ]
