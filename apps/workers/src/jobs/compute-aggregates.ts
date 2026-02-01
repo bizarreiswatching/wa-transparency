@@ -25,10 +25,28 @@ export async function computeAggregates(): Promise<void> {
     console.log('Refreshing active_lobbyists...');
     await db.query('REFRESH MATERIALIZED VIEW active_lobbyists');
 
+    // Refresh contract aggregate views (may not exist if migration hasn't run)
+    try {
+      console.log('Refreshing contract_stats_by_source...');
+      await db.query('REFRESH MATERIALIZED VIEW contract_stats_by_source');
+
+      console.log('Refreshing top_contractors_by_level...');
+      await db.query('REFRESH MATERIALIZED VIEW top_contractors_by_level');
+
+      console.log('Refreshing top_contractors_by_fiscal_year...');
+      await db.query('REFRESH MATERIALIZED VIEW top_contractors_by_fiscal_year');
+
+      console.log('Refreshing agency_spending_summary...');
+      await db.query('REFRESH MATERIALIZED VIEW agency_spending_summary');
+    } catch (error) {
+      // Views may not exist yet if migration hasn't run
+      console.log('Note: Contract aggregate views not found (migration 007 may not have run yet)');
+    }
+
     // Generate activity log entries for recent changes
     await generateActivityLog(db);
 
-    await updateSyncState(db, 'compute-aggregates', 'idle', 5);
+    await updateSyncState(db, 'compute-aggregates', 'idle', 9);
     console.log('Aggregate computation complete.');
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -60,7 +78,7 @@ async function generateActivityLog(db: ReturnType<typeof getDb>): Promise<void> 
     LIMIT 100
   `);
 
-  // Log recent contracts
+  // Log recent contracts (WA place of performance or state/county/city source)
   await db.query(`
     INSERT INTO activity_log (activity_type, entity_id, title, amount, activity_date, metadata)
     SELECT
@@ -69,9 +87,14 @@ async function generateActivityLog(db: ReturnType<typeof getDb>): Promise<void> 
       c.awarding_agency || ' awarded contract to ' || c.recipient_name,
       c.amount,
       c.start_date,
-      jsonb_build_object('contract_id', c.id)
+      jsonb_build_object(
+        'contract_id', c.id,
+        'source_type', c.source_type,
+        'awarding_agency_type', c.awarding_agency_type
+      )
     FROM contracts c
     WHERE c.created_at > NOW() - INTERVAL '1 day'
+    AND (c.place_of_performance_state = 'WA' OR c.source_type IN ('state', 'county', 'city'))
     AND NOT EXISTS (
       SELECT 1 FROM activity_log al
       WHERE al.metadata->>'contract_id' = c.id::text

@@ -30,10 +30,15 @@ export async function runEntityResolution(options: ResolutionOptions = {}): Prom
     const recipientMatches = await resolver.resolveContributionRecipients();
     totalMatched += recipientMatches;
 
-    // Resolve contract recipients
-    console.log('Resolving contract recipients...');
+    // Resolve contract recipients (federal contracts)
+    console.log('Resolving federal contract recipients...');
     const contractMatches = await resolver.resolveContractRecipients();
     totalMatched += contractMatches;
+
+    // Resolve WA state/local contract recipients
+    console.log('Resolving WA state/local contract recipients...');
+    const waContractMatches = await resolver.resolveWaContractRecipients();
+    totalMatched += waContractMatches;
 
     // Resolve lobbying employers
     console.log('Resolving lobbying employers...');

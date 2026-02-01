@@ -35,6 +35,13 @@ const jobHandlers: Record<string, () => Promise<void>> = {
     import('./jobs/trigger-rebuild').then((m) => m.triggerRebuild()),
   'entity-resolution': () =>
     import('./jobs/entity-resolution').then((m) => m.runEntityResolution()),
+  // WA State and local government contract sync jobs
+  'sync-wa-agency-contracts': () =>
+    import('./jobs/sync-wa-agency-contracts').then((m) => m.syncWaAgencyContracts()),
+  'sync-wa-statewide-sales': () =>
+    import('./jobs/sync-wa-statewide-sales').then((m) => m.syncWaStatewideSales()),
+  'sync-king-county-contracts': () =>
+    import('./jobs/sync-king-county-contracts').then((m) => m.syncKingCountyContracts()),
 };
 
 async function run(): Promise<void> {

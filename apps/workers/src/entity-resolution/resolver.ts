@@ -91,6 +91,7 @@ export class EntityResolver {
               recipient_state, recipient_zip
        FROM contracts
        WHERE recipient_entity_id IS NULL
+         AND place_of_performance_state = 'WA'
        LIMIT $1`,
       [this.options.batchSize]
     );
@@ -116,6 +117,83 @@ export class EntityResolver {
     }
 
     return totalMatched;
+  }
+
+  /**
+   * Resolve WA state and local government contract recipients
+   * Handles state, county, and city contracts from data.wa.gov and local sources
+   */
+  async resolveWaContractRecipients(): Promise<number> {
+    let totalMatched = 0;
+
+    // Get unmatched contracts from state/county/city sources
+    const unmatched = await this.db.query(
+      `SELECT id, recipient_name, recipient_address, recipient_city,
+              recipient_state, recipient_zip, source_type, vendor_certifications
+       FROM contracts
+       WHERE recipient_entity_id IS NULL
+         AND source_type IN ('state', 'county', 'city')
+       LIMIT $1`,
+      [this.options.batchSize]
+    );
+
+    console.log(`Processing ${unmatched.rows.length} unmatched WA contract recipients...`);
+
+    for (const contract of unmatched.rows) {
+      const match = await this.findEntityMatch({
+        name: contract.recipient_name,
+        address: contract.recipient_address,
+        city: contract.recipient_city,
+        state: contract.recipient_state,
+        zip: contract.recipient_zip,
+        type: 'organization',
+      });
+
+      if (match) {
+        await this.db.query(
+          `UPDATE contracts SET recipient_entity_id = $1, updated_at = NOW()
+           WHERE id = $2`,
+          [match.entityId, contract.id]
+        );
+        totalMatched++;
+
+        // Update entity metadata with vendor certifications if available
+        if (contract.vendor_certifications && contract.vendor_certifications.length > 0) {
+          await this.updateEntityCertifications(match.entityId, contract.vendor_certifications);
+        }
+      }
+    }
+
+    return totalMatched;
+  }
+
+  /**
+   * Update entity metadata with vendor certifications from contract data
+   */
+  private async updateEntityCertifications(entityId: string, certifications: string[]): Promise<void> {
+    if (!certifications || certifications.length === 0) return;
+
+    // Get current entity metadata
+    const result = await this.db.query(
+      `SELECT metadata FROM entities WHERE id = $1`,
+      [entityId]
+    );
+
+    if (result.rows.length === 0) return;
+
+    const currentMetadata = result.rows[0].metadata || {};
+    const existingCerts = currentMetadata.certifications || [];
+
+    // Merge certifications (avoid duplicates)
+    const allCerts = Array.from(new Set([...existingCerts, ...certifications]));
+
+    await this.db.query(
+      `UPDATE entities
+       SET metadata = jsonb_set(COALESCE(metadata, '{}'), '{certifications}', $2::jsonb),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [entityId, JSON.stringify(allCerts)]
+    );
   }
 
   async resolveLobbyingEmployers(): Promise<number> {

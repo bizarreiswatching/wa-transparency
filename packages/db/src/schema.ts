@@ -53,7 +53,11 @@ export interface Contribution {
   updated_at: Date;
 }
 
-// Federal contracts
+// Contract source types
+export type ContractSourceType = 'federal' | 'state' | 'county' | 'city';
+export type AwardingAgencyType = 'federal' | 'state' | 'county' | 'city';
+
+// Contracts (federal, state, county, city)
 export interface Contract {
   id: string;
   usaspending_id?: string;
@@ -78,6 +82,27 @@ export interface Contract {
   raw_data: Record<string, unknown>;
   created_at: Date;
   updated_at: Date;
+  // New fields for multi-source support
+  source_type: ContractSourceType;
+  contract_number?: string;
+  procurement_method?: string;
+  fiscal_year?: number;
+  awarding_agency_type?: AwardingAgencyType;
+  vendor_certifications: string[];
+  wa_data_id?: string;
+  king_county_id?: string;
+}
+
+// Contract source provenance tracking
+export interface ContractSource {
+  id: string;
+  contract_id: string;
+  source_name: string;
+  source_record_id: string;
+  source_url?: string;
+  fetched_at: Date;
+  raw_data?: Record<string, unknown>;
+  created_at: Date;
 }
 
 // Lobbying
